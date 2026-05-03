@@ -1,4 +1,6 @@
 #!/bin/bash
+echo "--- M82 CLOUD SYNC ---"
 git add .
-git commit -m "M82 v3.0: Total Sovereignty Sync - [$(date +'%Y-%m-%d %H:%M')]"
-git push
+git commit -m "M82-SYNC: Núcleo actualizado con licencia y alertas LSEG"
+git push origin main
+echo "--- SINCRONIZACIÓN COMPLETADA ---"
