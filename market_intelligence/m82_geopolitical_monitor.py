@@ -2,19 +2,30 @@ import os
 import requests
 import time
 
-def get_order_flow_logic(symbol):
-    # Una vez vinculado LSEG, aquí procesaremos el 'Real-time Order Flow'
-    # Por ahora, mantenemos el placeholder de inteligencia
-    return "ANALIZANDO FLUJO LSEG..."
-
-def get_data(symbol):
+def get_data(symbol, is_index=True):
     key = os.getenv('ALPHA_VANTAGE_KEY', '').strip()
+    # Usamos GLOBAL_QUOTE para máxima precisión en Equities/ETFs
     url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}"
     try:
         time.sleep(0.7)
         r = requests.get(url).json()
-        val = r.get('Global Quote', {}).get('05. price', 'N/A')
-        return f"{float(val):,.2f}" if val != 'N/A' else 'N/A'
+        quote = r.get('Global Quote', {})
+        price = quote.get('05. price', 'N/A')
+        change = quote.get('10. change percent', '0%')
+        if price != 'N/A':
+            return f"${float(price):,.2f} ({change})"
+        return "N/A"
+    except: return "N/A"
+
+def get_treasury_yield():
+    # El bono a 10 años es el benchmark global
+    key = os.getenv('ALPHA_VANTAGE_KEY', '').strip()
+    url = f"https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=10year&apikey={key}"
+    try:
+        time.sleep(0.7)
+        r = requests.get(url).json()
+        val = r.get('data', [{}])[0].get('value', 'N/A')
+        return f"{val}%" if val != 'N/A' else "N/A"
     except: return "N/A"
 
 def send_intel(msg):
@@ -24,23 +35,32 @@ def send_intel(msg):
     requests.post(url, json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    # Activos Clave para Order Flow
-    spy_price = get_data("SPY")
-    qqq_price = get_data("QQQ")
+    # 1. EQUITIES & INDEX ETFs
+    spy = get_data("SPY")   # S&P 500
+    qqq = get_data("QQQ")   # Nasdaq 100
+    dia = get_data("DIA")   # Dow Jones
     
-    # Sección de Order Flow (Placeholder hasta AppKey)
-    flow_spy = "Institutional Accumulation: HIGH (LSEG Data Pending)"
-    flow_qqq = "Retail Sentiment: BEARISH (LSEG Data Pending)"
-
+    # 2. BONDS (Renta Fija)
+    t10y = get_treasury_yield() # Yield 10 Años
+    tlt = get_data("TLT")       # ETF de Bonos +20 años (Sentimiento de tipos)
+    
+    # 3. SECTORIAL / COMMODITIES
+    gold = get_data("GLD")      # ETF Oro
+    oil = get_data("USO")       # ETF Petróleo
+    
     report = (
-        "🏛️ **M82 ORDER FLOW INTELLIGENCE**\n\n"
-        "📊 **Snapshot de Mercado:**\n"
-        f"  • S&P 500: \${spy_price}\n"
-        f"  • Nasdaq: \${qqq_price}\n\n"
-        "🐋 **Institutional Flow (LSEG Analysis):**\n"
-        f"  • SPY Flow: {flow_spy}\n"
-        f"  • QQQ Flow: {flow_qqq}\n\n"
-        "⚠️ **Insight:** Seguimiento de flujos de órdenes institucionales activos. Esperando vinculación LSEG Workspace para precisión 1:1.\n\n"
-        "⚡ *Molina Holdings: Transparency Era*"
+        "🏛️ **M82 ASSET MATRIX BRIEFING**\n\n"
+        "📈 **Equities & Indices:**\n"
+        f"  • SPY: {spy}\n"
+        f"  • QQQ: {qqq}\n"
+        f"  • DIA: {dia}\n\n"
+        "🏦 **Fixed Income (Bonds):**\n"
+        f"  • US 10Y Yield: {t10y}\n"
+        f"  • TLT (Long Bond): {tlt}\n\n"
+        "🛡️ **Strategic ETFs:**\n"
+        f"  • GLD (Oro): {gold}\n"
+        f"  • USO (Crudo): {oil}\n\n"
+        "🐋 *LSEG Order Flow Analysis: Pending Key...*\n"
+        "⚡ *Molina Holdings: Multi-Asset Surveillance*"
     )
     send_intel(report)
