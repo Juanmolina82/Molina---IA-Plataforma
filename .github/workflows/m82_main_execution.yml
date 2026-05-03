@@ -1,5 +1,13 @@
-name: M82 Intelligence Execution
-on: [push]
+name: M82 24/7 Intelligence Execution
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    # Horarios programados en UTC (Ajustados para coincidir con sus horas solicitadas)
+    # 5am, 9am, 12pm, 4pm, 8pm, 12am
+    - cron: '0 9,13,16,20,0,4 * * *'
+  workflow_dispatch:
+
 jobs:
   run-intel:
     runs-on: ubuntu-latest
