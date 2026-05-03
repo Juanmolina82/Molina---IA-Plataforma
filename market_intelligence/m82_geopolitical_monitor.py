@@ -1,39 +1,40 @@
 import os
 import requests
 import time
+import yfinance as yf
 from pyfinviz.news import News
+
+def get_realtime_data(symbol):
+    try:
+        ticker = yf.Ticker(symbol)
+        # Obtenemos el precio actual y el cierre anterior para el %
+        data = ticker.fast_info
+        last_price = data['last_price']
+        prev_close = data['previous_close']
+        change = ((last_price - prev_close) / prev_close) * 100
+        return f"${last_price:,.2f} ({change:+.2f}%)"
+    except:
+        return "N/A"
+
+def get_treasury_yield():
+    # El rendimiento del bono a 10 años también está en yfinance como '^TNX'
+    try:
+        tnx = yf.Ticker("^TNX")
+        yield_val = tnx.fast_info['last_price']
+        return f"{yield_val:.2f}%"
+    except:
+        return "N/A"
 
 def get_finviz_intel():
     try:
         news_client = News()
-        headlines = news_client.news_df.head(8)['Headline'].tolist()
-        
-        # Filtro de Alerta Roja
-        keywords = ["CRASH", "BREAKING", "EMERGENCY", "HALT", "COLLAPSE", "FED ALERT"]
-        alerts = []
-        clean_news = []
-        
-        for h in headlines:
-            if any(word in h.upper() for word in keywords):
-                alerts.append(f"🚨 **{h}**")
-            else:
-                clean_news.append(f"• {h}")
-        
-        return alerts, clean_news[:5]
+        headlines = news_client.news_df.head(5)['Headline'].tolist()
+        keywords = ["CRASH", "BREAKING", "EMERGENCY", "HALT"]
+        alerts = [f"🚨 **{h}**" for h in headlines if any(w in h.upper() for w in keywords)]
+        news = [f"• {h}" for h in headlines if not any(w in h.upper() for w in keywords)]
+        return alerts, news[:5]
     except:
-        return [], ["⚠️ Finviz: Servicio offline."]
-
-def get_data(symbol):
-    key = os.getenv('ALPHA_VANTAGE_KEY', '').strip()
-    url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}"
-    try:
-        time.sleep(0.7)
-        r = requests.get(url).json()
-        quote = r.get('Global Quote', {})
-        price = quote.get('05. price', 'N/A')
-        change = quote.get('10. change percent', '0%')
-        return f"${float(price):,.2f} ({change})" if price != 'N/A' else "N/A"
-    except: return "N/A"
+        return [], ["⚠️ Finviz: Standby."]
 
 def send_intel(msg):
     token = os.getenv('TELEGRAM_TOKEN', '').strip()
@@ -42,21 +43,29 @@ def send_intel(msg):
     requests.post(url, json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    spy = get_data("SPY")
+    # Extracción masiva sin bloqueos (yfinance)
+    spy = get_realtime_data("SPY")
+    qqq = get_realtime_data("QQQ")
+    dia = get_realtime_data("DIA")
+    tlt = get_realtime_data("TLT")
+    gold = get_realtime_data("GLD")
+    oil = get_realtime_data("USO")
+    t10y = get_treasury_yield()
+    
     alerts, news = get_finviz_intel()
-    
-    # Construcción del reporte con jerarquía de importancia
     alert_block = "\n".join(alerts) + "\n\n" if alerts else ""
-    news_block = "\n".join(news)
-    
-    header = "🔴 **M82 EMERGENCY BROADCAST**\n\n" if alerts else "🏛️ **M82 FINVIZ INTELLIGENCE**\n\n"
     
     report = (
-        f"{header}"
+        f"{'🔴 **M82 EMERGENCY ALERT**' if alerts else '🏛️ **M82 ASSET MATRIX**'}\n\n"
         f"{alert_block}"
-        f"📈 **Market Status:** SPY {spy}\n\n"
-        "📰 **Global Headlines:**\n"
-        f"{news_block}\n\n"
-        "⚡ *Molina Holdings: Black Swan Protocol Active*"
+        "📈 **Equities & Indices:**\n"
+        f"  • SPY: {spy} | QQQ: {qqq} | DIA: {dia}\n\n"
+        "🏦 **Fixed Income:**\n"
+        f"  • US 10Y Yield: {t10y} | TLT: {tlt}\n\n"
+        "🛡️ **Strategic ETFs:**\n"
+        f"  • Gold: {gold} | Crude: {oil}\n\n"
+        "📰 **Finviz Feed:**\n"
+        f"{'| '.join(news[:3])}\n\n"
+        "⚡ *Molina Holdings: yFinance Hybrid Active*"
     )
     send_intel(report)
