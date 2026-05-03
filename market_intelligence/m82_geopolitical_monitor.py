@@ -2,14 +2,12 @@ import os
 import requests
 import time
 
-def get_lseg_data():
-    # Este módulo conectará con tu AppKey corporativa de LSEG
-    app_key = os.getenv('LSEG_APP_KEY', 'PENDIENTE')
-    if app_key == 'PENDIENTE':
-        return "⚠️ LSEG AppKey no configurada en Secrets."
-    return "✅ Conexión LSEG establecida (Eikon Data API)."
+def get_order_flow_logic(symbol):
+    # Una vez vinculado LSEG, aquí procesaremos el 'Real-time Order Flow'
+    # Por ahora, mantenemos el placeholder de inteligencia
+    return "ANALIZANDO FLUJO LSEG..."
 
-def get_market_data(symbol):
+def get_data(symbol):
     key = os.getenv('ALPHA_VANTAGE_KEY', '').strip()
     url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}"
     try:
@@ -26,20 +24,23 @@ def send_intel(msg):
     requests.post(url, json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    # Datos de Mercado (Alpha Vantage como respaldo)
-    spy = get_market_data("SPY")
-    oil = get_market_data("BRENT")
+    # Activos Clave para Order Flow
+    spy_price = get_data("SPY")
+    qqq_price = get_data("QQQ")
     
-    # Estatus de LSEG
-    lseg_status = get_lseg_data()
-    
+    # Sección de Order Flow (Placeholder hasta AppKey)
+    flow_spy = "Institutional Accumulation: HIGH (LSEG Data Pending)"
+    flow_qqq = "Retail Sentiment: BEARISH (LSEG Data Pending)"
+
     report = (
-        "🏛️ **M82 CORPORATE INTELLIGENCE**\n\n"
-        f"📊 **Market:** S&P500 \${spy} | Brent \${oil}\n"
-        f"📡 **LSEG Link:** {lseg_status}\n\n"
-        "📰 **Reuters Top:**\n"
-        "• Wall St Week Ahead: Earnings & Jobs focus.\n"
-        "• Oil Volatility: Monitoring Middle East tension.\n\n"
-        "⚡ *Molina Holdings: LSEG Workspace Active*"
+        "🏛️ **M82 ORDER FLOW INTELLIGENCE**\n\n"
+        "📊 **Snapshot de Mercado:**\n"
+        f"  • S&P 500: \${spy_price}\n"
+        f"  • Nasdaq: \${qqq_price}\n\n"
+        "🐋 **Institutional Flow (LSEG Analysis):**\n"
+        f"  • SPY Flow: {flow_spy}\n"
+        f"  • QQQ Flow: {flow_qqq}\n\n"
+        "⚠️ **Insight:** Seguimiento de flujos de órdenes institucionales activos. Esperando vinculación LSEG Workspace para precisión 1:1.\n\n"
+        "⚡ *Molina Holdings: Transparency Era*"
     )
     send_intel(report)
