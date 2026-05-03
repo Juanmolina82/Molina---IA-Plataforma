@@ -5,14 +5,23 @@ from pyfinviz.news import News
 
 def get_finviz_intel():
     try:
-        # Extraemos las noticias globales (Market News)
         news_client = News()
-        # Tomamos los primeros 5 titulares del DataFrame de noticias
-        headlines = news_client.news_df.head(5)['Headline'].tolist()
-        formatted_news = "\n".join([f"• {h}" for h in headlines])
-        return formatted_news
-    except Exception as e:
-        return "⚠️ Finviz News: Temporalmente indisponible."
+        headlines = news_client.news_df.head(8)['Headline'].tolist()
+        
+        # Filtro de Alerta Roja
+        keywords = ["CRASH", "BREAKING", "EMERGENCY", "HALT", "COLLAPSE", "FED ALERT"]
+        alerts = []
+        clean_news = []
+        
+        for h in headlines:
+            if any(word in h.upper() for word in keywords):
+                alerts.append(f"🚨 **{h}**")
+            else:
+                clean_news.append(f"• {h}")
+        
+        return alerts, clean_news[:5]
+    except:
+        return [], ["⚠️ Finviz: Servicio offline."]
 
 def get_data(symbol):
     key = os.getenv('ALPHA_VANTAGE_KEY', '').strip()
@@ -33,18 +42,21 @@ def send_intel(msg):
     requests.post(url, json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    # Datos Core
     spy = get_data("SPY")
+    alerts, news = get_finviz_intel()
     
-    # Inteligencia de Finviz
-    finviz_news = get_finviz_intel()
+    # Construcción del reporte con jerarquía de importancia
+    alert_block = "\n".join(alerts) + "\n\n" if alerts else ""
+    news_block = "\n".join(news)
+    
+    header = "🔴 **M82 EMERGENCY BROADCAST**\n\n" if alerts else "🏛️ **M82 FINVIZ INTELLIGENCE**\n\n"
     
     report = (
-        "🏛️ **M82 FINVIZ INTELLIGENCE**\n\n"
+        f"{header}"
+        f"{alert_block}"
         f"📈 **Market Status:** SPY {spy}\n\n"
-        "📰 **Finviz Global Headlines:**\n"
-        f"{finviz_news}\n\n"
-        "🐋 *LSEG Order Flow: Monitor activo.*\n"
-        "⚡ *Molina Holdings: Full System Integrated*"
+        "📰 **Global Headlines:**\n"
+        f"{news_block}\n\n"
+        "⚡ *Molina Holdings: Black Swan Protocol Active*"
     )
     send_intel(report)
