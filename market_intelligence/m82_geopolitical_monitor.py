@@ -10,14 +10,14 @@ def get_data(function, symbol=None):
         url = f"https://www.alphavantage.co/query?function={function}&apikey={key}"
     
     try:
-        time.sleep(1.5) # Pausa de seguridad para el Tridente M82
+        # Reducción de latencia al mínimo seguro (0.8s)
+        time.sleep(0.8) 
         r = requests.get(url).json()
         if symbol:
             val = r.get('Realtime Currency Exchange Rate', {}).get('5. Exchange Rate', 'N/A')
-            return f"{float(val):,.2f}" if val != 'N/A' else 'N/A'
+            return f"{float(val):,.0f}" if val != 'N/A' else 'N/A'
         data = r.get('data', [{}])
-        val = data[0].get('value', 'N/A') if data else 'N/A'
-        return val
+        return data[0].get('value', 'N/A') if data else 'N/A'
     except:
         return "N/A"
 
@@ -28,39 +28,22 @@ def send_intel(msg):
     requests.post(url, json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    # Energía y Metales
-    oil = get_data("BRENT")
-    gas = get_data("NATURAL_GAS")
-    gold = get_data("GOLD")
-    silver = get_data("SILVER")
+    # Commodities
+    oil, gas = get_data("BRENT"), get_data("NATURAL_GAS")
+    gold, silver = get_data("GOLD"), get_data("SILVER")
     copper = get_data("COPPER")
     
-    # Agricultura (Soft Commodities)
-    corn = get_data("CORN")
-    wheat = get_data("WHEAT")
-    
-    # Criptoactivos
-    btc = get_data(None, "BTC")
-    eth = get_data(None, "ETH")
-    sol = get_data(None, "SOL")
+    # Cripto (Redondeado para lectura rápida)
+    btc, eth, sol = get_data(None, "BTC"), get_data(None, "ETH"), get_data(None, "SOL")
 
     report = (
-        "🏛️ **M82 FULL ASSET INTELLIGENCE**\n\n"
-        "🔥 **Energía:**\n"
-        f"  • Petróleo Brent: \${oil} USD\n"
-        f"  • Gas Natural: \${gas} USD\n\n"
-        "⚒️ **Metales:**\n"
-        f"  • Oro Spot: \${gold} USD\n"
-        f"  • Plata: \${silver} USD\n"
-        f"  • Cobre: \${copper} USD\n\n"
-        "🌾 **Agricultura:**\n"
-        f"  • Trigo: \${wheat} USD\n"
-        f"  • Maíz: \${corn} USD\n\n"
-        "₿ **Criptoactivos:**\n"
-        f"  • BTC: \${btc}\n"
-        f"  • ETH: \${eth}\n"
-        f"  • SOL: \${sol}\n\n"
-        "✅ **Gobernanza:** Molina Holdings LLC"
+        "🏛️ **M82 RAPID INTEL**\n\n"
+        f"🛢️ **Brent:** \${oil} | **Gas:** \${gas}\n"
+        f"✨ **Oro:** \${gold} | **Plata:** \${silver}\n"
+        f"⚒️ **Cobre:** \${copper}\n\n"
+        f"🟠 **BTC:** \${btc}\n"
+        f"🔹 **ETH:** \${eth}\n"
+        f"🟣 **SOL:** \${sol}\n\n"
+        "⚡ *Molina Holdings: High-Speed Mode*"
     )
     send_intel(report)
-# Update: Force Push V6.1 - Full Recon
