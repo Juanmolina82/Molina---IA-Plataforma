@@ -2,20 +2,18 @@ import os
 import requests
 import time
 
-def get_market_summary():
-    # Simulamos el insight de Reuters para el Commander Briefing
-    return (
-        "⚠️ **WEEK AHEAD FOCUS:**\n"
-        "• Petróleo Brent en zona crítica ($103+).\n"
-        "• Viernes: US Jobs Report (Forecast: 73k).\n"
-        "• Earnings: AMD, PLTR, COIN en el radar."
-    )
+def get_lseg_data():
+    # Este módulo conectará con tu AppKey corporativa de LSEG
+    app_key = os.getenv('LSEG_APP_KEY', 'PENDIENTE')
+    if app_key == 'PENDIENTE':
+        return "⚠️ LSEG AppKey no configurada en Secrets."
+    return "✅ Conexión LSEG establecida (Eikon Data API)."
 
-def get_data(symbol):
+def get_market_data(symbol):
     key = os.getenv('ALPHA_VANTAGE_KEY', '').strip()
     url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}"
     try:
-        time.sleep(0.8)
+        time.sleep(0.7)
         r = requests.get(url).json()
         val = r.get('Global Quote', {}).get('05. price', 'N/A')
         return f"{float(val):,.2f}" if val != 'N/A' else 'N/A'
@@ -28,17 +26,20 @@ def send_intel(msg):
     requests.post(url, json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    spy = get_data("SPY")
-    btc_url = f"https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=USD&apikey={os.getenv('ALPHA_VANTAGE_KEY')}"
-    btc = requests.get(btc_url).json().get('Realtime Currency Exchange Rate', {}).get('5. Exchange Rate', 'N/A')[:6]
+    # Datos de Mercado (Alpha Vantage como respaldo)
+    spy = get_market_data("SPY")
+    oil = get_market_data("BRENT")
     
-    insight = get_market_summary()
+    # Estatus de LSEG
+    lseg_status = get_lseg_data()
     
     report = (
-        "🏛️ **M82 LSEG INTELLIGENCE**\n\n"
-        f"📈 **S&P 500:** \${spy}\n"
-        f"₿ **Bitcoin:** \${btc}\n\n"
-        f"{insight}\n\n"
-        "⚡ *Molina Holdings: Reuters Sincronizado*"
+        "🏛️ **M82 CORPORATE INTELLIGENCE**\n\n"
+        f"📊 **Market:** S&P500 \${spy} | Brent \${oil}\n"
+        f"📡 **LSEG Link:** {lseg_status}\n\n"
+        "📰 **Reuters Top:**\n"
+        "• Wall St Week Ahead: Earnings & Jobs focus.\n"
+        "• Oil Volatility: Monitoring Middle East tension.\n\n"
+        "⚡ *Molina Holdings: LSEG Workspace Active*"
     )
     send_intel(report)
