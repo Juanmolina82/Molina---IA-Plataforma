@@ -1,25 +1,20 @@
 import os
 import requests
 import time
+import xml.etree.ElementTree as ET
 
 def get_data(function, symbol=None):
     key = os.getenv('ALPHA_VANTAGE_KEY', '').strip()
-    if symbol:
-        # Usamos GLOBAL_QUOTE para acciones/ETFs de índices
-        url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}"
-    else:
-        url = f"https://www.alphavantage.co/query?function={function}&apikey={key}"
-    
+    url = f"https://www.alphavantage.co/query?function={'GLOBAL_QUOTE' if symbol else function}&{f'symbol={symbol}' if symbol else ''}&apikey={key}"
     try:
-        time.sleep(0.7) # Velocidad máxima optimizada
+        time.sleep(0.7)
         r = requests.get(url).json()
         if symbol:
             val = r.get('Global Quote', {}).get('05. price', 'N/A')
             return f"{float(val):,.2f}" if val != 'N/A' else 'N/A'
         data = r.get('data', [{}])
         return data[0].get('value', 'N/A') if data else 'N/A'
-    except:
-        return "N/A"
+    except: return "N/A"
 
 def get_crypto(symbol):
     key = os.getenv('ALPHA_VANTAGE_KEY', '').strip()
@@ -29,8 +24,19 @@ def get_crypto(symbol):
         r = requests.get(url).json()
         val = r.get('Realtime Currency Exchange Rate', {}).get('5. Exchange Rate', 'N/A')
         return f"{float(val):,.0f}" if val != 'N/A' else 'N/A'
-    except:
-        return "N/A"
+    except: return "N/A"
+
+def get_reuters_news():
+    try:
+        # Feed de noticias globales de Reuters
+        r = requests.get("https://www.reutersagency.com/feed/?best-topics=political-geopolitics&post_type=best")
+        root = ET.fromstring(r.content)
+        news = ""
+        for item in root.findall('./channel/item')[:3]: # Los 3 titulares más recientes
+            title = item.find('title').text
+            news += f"• {title}\n"
+        return news if news else "Sin noticias recientes."
+    except: return "Servicio de noticias temporalmente offline."
 
 def send_intel(msg):
     token = os.getenv('TELEGRAM_TOKEN', '').strip()
@@ -39,29 +45,22 @@ def send_intel(msg):
     requests.post(url, json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    # Índices (vía ETFs principales)
-    spy = get_data(None, "SPY")
-    qqq = get_data(None, "QQQ")
-    
-    # Commodities & Futuros
-    oil = get_data("BRENT")
-    gold = get_data("GOLD")
-    gas = get_data("NATURAL_GAS")
-    
-    # Cripto
+    # Datos de Mercado
+    spy, qqq = get_data(None, "SPY"), get_data(None, "QQQ")
+    oil, gold = get_data("BRENT"), get_data("GOLD")
     btc = get_crypto("BTC")
-    eth = get_crypto("ETH")
+    
+    # Noticias Reuters
+    news = get_reuters_news()
 
     report = (
-        "🏛️ **M82 COMMANDER BRIEFING**\n\n"
-        "📊 **Índices de Mercado:**\n"
-        f"  • S&P 500 (SPY): \${spy}\n"
-        f"  • Nasdaq (QQQ): \${qqq}\n\n"
-        "🛢️ **Commodities & Futures:**\n"
-        f"  • Oil Brent: \${oil} | Gas: \${gas}\n"
-        f"  • Oro Spot: \${gold} USD\n\n"
-        "₿ **Digital Assets:**\n"
-        f"  • BTC: \${btc} | ETH: \${eth}\n\n"
-        "⚡ *Molina Holdings: Full System Sync*"
+        "🏛️ **M82 COMMANDER BRIEFING & REUTERS**\n\n"
+        "📊 **Mercados:**\n"
+        f"  • S&P500: \${spy} | Nasdaq: \${qqq}\n"
+        f"  • Brent: \${oil} | Oro: \${gold}\n"
+        f"  • BTC: \${btc} USD\n\n"
+        "📰 **Reuters Geopolitics:**\n"
+        f"{news}\n"
+        "⚡ *Molina Holdings: Global Intelligence*"
     )
     send_intel(report)
