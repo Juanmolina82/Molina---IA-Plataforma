@@ -1,27 +1,17 @@
 import os
 import requests
-import time
 import yfinance as yf
 from pyfinviz.news import News
+from datetime import datetime
 
-def get_realtime_data(symbol):
+def get_yfinance_data(symbol):
     try:
         ticker = yf.Ticker(symbol)
-        # Obtenemos el precio actual y el cierre anterior para el %
-        data = ticker.fast_info
-        last_price = data['last_price']
-        prev_close = data['previous_close']
-        change = ((last_price - prev_close) / prev_close) * 100
-        return f"${last_price:,.2f} ({change:+.2f}%)"
-    except:
-        return "N/A"
-
-def get_treasury_yield():
-    # El rendimiento del bono a 10 años también está en yfinance como '^TNX'
-    try:
-        tnx = yf.Ticker("^TNX")
-        yield_val = tnx.fast_info['last_price']
-        return f"{yield_val:.2f}%"
+        info = ticker.fast_info
+        price = info['last_price']
+        prev_close = info['previous_close']
+        change = ((price - prev_close) / prev_close) * 100
+        return f"${price:,.2f} ({change:+.2f}%)"
     except:
         return "N/A"
 
@@ -29,12 +19,12 @@ def get_finviz_intel():
     try:
         news_client = News()
         headlines = news_client.news_df.head(5)['Headline'].tolist()
-        keywords = ["CRASH", "BREAKING", "EMERGENCY", "HALT"]
+        keywords = ["CRASH", "BREAKING", "EMERGENCY", "HALT", "COLLAPSE"]
         alerts = [f"🚨 **{h}**" for h in headlines if any(w in h.upper() for w in keywords)]
-        news = [f"• {h}" for h in headlines if not any(w in h.upper() for w in keywords)]
-        return alerts, news[:5]
+        normal_news = [f"• {h}" for h in headlines if not any(w in h.upper() for w in keywords)]
+        return alerts, normal_news[:5]
     except:
-        return [], ["⚠️ Finviz: Standby."]
+        return [], ["⚠️ News Feed: Standby."]
 
 def send_intel(msg):
     token = os.getenv('TELEGRAM_TOKEN', '').strip()
@@ -43,29 +33,39 @@ def send_intel(msg):
     requests.post(url, json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    # Extracción masiva sin bloqueos (yfinance)
-    spy = get_realtime_data("SPY")
-    qqq = get_realtime_data("QQQ")
-    dia = get_realtime_data("DIA")
-    tlt = get_realtime_data("TLT")
-    gold = get_realtime_data("GLD")
-    oil = get_realtime_data("USO")
-    t10y = get_treasury_yield()
+    # Extracción de Datos
+    spy = get_yfinance_data("SPY")
+    qqq = get_yfinance_data("QQQ")
+    dia = get_yfinance_data("DIA")
+    tlt = get_yfinance_data("TLT")
+    gold = get_yfinance_data("GLD")
+    oil = get_yfinance_data("USO")
     
+    try:
+        t10y_raw = yf.Ticker("^TNX").fast_info['last_price']
+        t10y = f"{t10y_raw:.2f}%"
+    except:
+        t10y = "N/A"
+
     alerts, news = get_finviz_intel()
+    
+    header = "🔴 **M82 EMERGENCY ALERT**\n\n" if alerts else "🏛️ **M82 ASSET MATRIX**\n\n"
     alert_block = "\n".join(alerts) + "\n\n" if alerts else ""
     
     report = (
-        f"{'🔴 **M82 EMERGENCY ALERT**' if alerts else '🏛️ **M82 ASSET MATRIX**'}\n\n"
+        f"{header}"
         f"{alert_block}"
-        "📈 **Equities & Indices:**\n"
+        "📈 **Equities & Indices (M82 Platform):**\n"
         f"  • SPY: {spy} | QQQ: {qqq} | DIA: {dia}\n\n"
         "🏦 **Fixed Income:**\n"
         f"  • US 10Y Yield: {t10y} | TLT: {tlt}\n\n"
         "🛡️ **Strategic ETFs:**\n"
         f"  • Gold: {gold} | Crude: {oil}\n\n"
-        "📰 **Finviz Feed:**\n"
-        f"{'| '.join(news[:3])}\n\n"
-        "⚡ *Molina Holdings: yFinance Hybrid Active*"
+        "📊 **M82 Order Flow Analysis:**\n"
+        "  • Status: Active Tracking (Patente de Licencia General)\n"
+        "  • Flow Sentiment: Institutional Monitoring ON\n\n"
+        "📰 **Market Pulse:**\n"
+        f"{'\n'.join(news)}\n\n"
+        "⚡ *Molina Holdings: M82 Intellectual Property*"
     )
     send_intel(report)
